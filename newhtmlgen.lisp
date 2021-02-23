@@ -1,4 +1,4 @@
-;; htmlgen.lisp
+;; newhtmlgen.lisp
 ;;
 ;; copyright (c) 1986-2005 Franz Inc, Berkeley, CA  - All rights reserved.
 ;; copyright (c) 2000-2014 Franz Inc, Oakland, CA - All rights reserved.
@@ -22,7 +22,7 @@
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple Place,
 ;; Suite 330, Boston, MA  02111-1307  USA
 
-(defpackage :net.html.generator
+(defpackage :newhtmlgen
   (:use :common-lisp)
   (:export #:html
            #:html-print
@@ -32,7 +32,7 @@
            #:html-stream
            #:*html-stream*))
 
-(in-package :net.html.generator)
+(in-package :newhtmlgen)
 
 ;; JSC - Handling binary output hack
 ;; The problem is that aserve uses the same socket for transferring
