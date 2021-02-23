@@ -1,6 +1,6 @@
 ;; -*- mode: common-lisp; package: net.html.generator -*-
 ;;
-;; htmlgen.cl
+;; htmlgen.lisp
 ;;
 ;; copyright (c) 1986-2005 Franz Inc, Berkeley, CA  - All rights reserved.
 ;; copyright (c) 2000-2007 Franz Inc, Oakland, CA - All rights reserved.
@@ -37,7 +37,7 @@
 
 
 (defpackage :net.html.generator
-  (:use :common-lisp :acl-compat.excl)
+  (:use :common-lisp)
   (:export #:html 
 	   #:html-print
 	   #:html-print-subst
@@ -51,6 +51,60 @@
 	   ))
 
 (in-package :net.html.generator)
+
+(defmacro if* (&rest args)
+  "The if* macro used in Allegro. This macro definition is in the public domain.
+  Source: https://franz.com/~jkf/ifstar.txt"
+  (let ((if*-keyword-list '("then" "thenret" "else" "elseif")))
+	(do ((xx (reverse args) (cdr xx))
+		 (state :init)
+		 (elseseen nil)
+		 (totalcol nil)
+		 (lookat nil nil)
+		 (col nil))
+	  ((null xx)
+	   (cond ((eq state :compl)
+			  `(cond ,@totalcol))
+			 (t (error "if*: illegal form ~s" args))))
+	  (cond ((and (symbolp (car xx))
+				  (member (symbol-name (car xx))
+						  if*-keyword-list
+						  :test #'string-equal))
+			 (setq lookat (symbol-name (car xx)))))
+
+	  (cond ((eq state :init)
+			 (cond (lookat (cond ((string-equal lookat "thenret")
+								  (setq col nil
+										state :then))
+								 (t (error
+									  "if*: bad keyword ~a" lookat))))
+				   (t (setq state :col
+							col nil)
+					  (push (car xx) col))))
+			((eq state :col)
+			 (cond (lookat
+					 (cond ((string-equal lookat "else")
+							(cond (elseseen
+									(error
+									  "if*: multiples elses")))
+							(setq elseseen t)
+							(setq state :init)
+							(push `(t ,@col) totalcol))
+						   ((string-equal lookat "then")
+							(setq state :then))
+						   (t (error "if*: bad keyword ~s"
+									 lookat))))
+				   (t (push (car xx) col))))
+			((eq state :then)
+			 (cond (lookat
+					 (error
+					   "if*: keyword ~s at the wrong place " (car xx)))
+				   (t (setq state :compl)
+					  (push `(,(car xx) ,@col) totalcol))))
+			((eq state :compl)
+			 (cond ((not (string-equal lookat "elseif"))
+					(error "if*: missing elseif clause ")))
+			 (setq state :init))))))
 
 ;; JSC - Handling binary output hack
 ;; The problem is that aserve uses the same socket for transfering
