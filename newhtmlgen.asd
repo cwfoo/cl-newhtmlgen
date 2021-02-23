@@ -3,5 +3,10 @@
     :version "0.1.0"
     :licence "LLGPL"
     :components ((:file "newhtmlgen"))
-    :perform (load-op :after (op newhtmlgen)
-                      (pushnew :newhtmlgen cl:*features*)))
+    :in-order-to ((asdf:test-op (asdf:test-op "newhtmlgen/test"))))
+
+(asdf:defsystem "newhtmlgen/test"
+  :depends-on ("newhtmlgen")
+  :components ((:file "test-newhtmlgen"))
+  :perform (asdf:test-op (o s)
+             (uiop:symbol-call :newhtmlgen '#:run-tests)))
