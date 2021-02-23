@@ -4,11 +4,11 @@
   (with-open-file (p "~/public_html/test.html"
 		   :direction :output
 		   :if-exists :supersede)
-    
-    (html-stream p 
+
+    (html-stream p
 		 (:html
 		  (:head (:title "Test Table"))
-		  (:body (:table 
+		  (:body (:table
 			  (:tr (:td "0") (:td "0"))
 			  (:tr (:td "1") (:td "1"))
 			  (:tr (:td "2") (:td "4"))
@@ -20,8 +20,8 @@
   (with-open-file (p "~/public_html/test.html"
 		   :direction :output
 		   :if-exists :supersede)
-    
-    (html-stream p 
+
+    (html-stream p
 		 (:html
 		  (:head (:title "Test Table"))
 		  (:body ((:table border 2)
@@ -37,8 +37,8 @@
   (with-open-file (p "~/public_html/test.html"
 		   :direction :output
 		   :if-exists :supersede)
-    
-    (html-stream p 
+
+    (html-stream p
 		 (:html
 		  (:head (:title "Test Table"))
 		  (:body ((:table border 2)
@@ -50,24 +50,24 @@
   (with-open-file (p "~/public_html/test.html"
 		   :direction :output
 		   :if-exists :supersede)
-    
-    (html-stream p 
+
+    (html-stream p
 		 (:html
 		  (:head (:title "Test Table"))
 		  (:body ((:table border border-width
 				  bordercolor  border-color
 				  bgcolor backg-color
 				  cellpadding 3)
-			  (:tr ((:td bgcolor "blue") 
+			  (:tr ((:td bgcolor "blue")
 				((:font :color "white" :size "+1")
 				 "Value"))
-			       ((:td bgcolor "blue") 
+			       ((:td bgcolor "blue")
 				((:font :color "white" :size "+1")
 				 "Square"))
 			       )
 			  (dotimes (i count)
 			    (html (:tr (:td (:princ i))
 				       (:td (:princ (* i i))))))))))))
-		    
+
 
 
