@@ -38,7 +38,7 @@
 ;; The problem is that aserve uses the same socket for transferring
 ;; binary data (e.g. images) and text data (e.g. HTML). This kludge
 ;; solves this problem at the cost of I/O performance.
-(defun write-html-string (string &optional stream &key (start 0) end)
+(defun write-html-string (string stream &key (start 0) end)
   (if (and stream (equal (stream-element-type stream)
                          '(unsigned-byte 8)))
       (loop :for i :from start :below (or end (length string))
