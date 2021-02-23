@@ -1,9 +1,8 @@
-;; -*- mode: common-lisp; package: net.html.generator -*-
-;;
 ;; htmlgen.lisp
 ;;
 ;; copyright (c) 1986-2005 Franz Inc, Berkeley, CA  - All rights reserved.
-;; copyright (c) 2000-2007 Franz Inc, Oakland, CA - All rights reserved.
+;; copyright (c) 2000-2014 Franz Inc, Oakland, CA - All rights reserved.
+;; copyright (c) 2021 Foo Chuan Wei - All rights reserved.
 ;;
 ;; This code is free software; you can redistribute it and/or
 ;; modify it under the terms of the version 2.1 of
@@ -22,17 +21,6 @@
 ;; http://www.gnu.org/copyleft/lesser.txt (until superseded by a newer
 ;; version) or write to the Free Software Foundation, Inc., 59 Temple Place,
 ;; Suite 330, Boston, MA  02111-1307  USA
-;;
-
-;;
-;; $Id: htmlgen.cl,v 1.27 2007/04/17 22:05:04 layer Exp $
-
-;; Description:
-;;   html generator
-
-;;- This code in this file obeys the Lisp Coding Standard found in
-;;- http://www.franz.com/~jkf/coding_standards.html
-;;-
 
 
 
@@ -44,11 +32,7 @@
 	   #:html-print-list
 	   #:html-print-list-subst
 	   #:html-stream
-	   #:*html-stream*
-
-
-	   ;; should export with with-html-xxx things too I suppose
-	   ))
+	   #:*html-stream*))
 
 (in-package :net.html.generator)
 
@@ -107,10 +91,9 @@
 			 (setq state :init))))))
 
 ;; JSC - Handling binary output hack
-;; The problem is that aserve uses the same socket for transfering
+;; The problem is that aserve uses the same socket for transferring
 ;; binary data (e.g. images) and text data (e.g. HTML). This kludge
 ;; solves this problem at the cost of I/O performance.
-
 (defun write-html-string (string &optional stream &key (start 0) end)
   (if (and stream (equal (stream-element-type stream)
                          '(unsigned-byte 8)))
@@ -120,7 +103,7 @@
 ;           :do (write-byte (char-code c) stream))
       (write-string string stream :start start :end (or end (length string)))))
 
-;; html generation
+;;; HTML generation.
 
 (defstruct (html-process (:type list) (:constructor
 				       make-html-process (key has-inverse
@@ -128,28 +111,29 @@
 							      print
 							      name-attr
 							      )))
-  key		; keyword naming this tag
-  has-inverse	; t if the / form is used
-  macro  	; the macro to define this
-  special       ; if true then call this to process the keyword and return
-                ; the macroexpansion
-  print         ; function used to handle this in html-print
-  name-attr     ; attribute symbols which can name this object for subst purposes
+  key          ; Keyword naming this tag.
+  has-inverse  ; T if the / form is used.
+  macro        ; The macro to define this.
+  special      ; If true then call this to process the keyword and return
+               ; the macroexpansion.
+  print        ; Function used to handle this in html-print.
+  name-attr    ; Attribute symbols which can name this object for subst purposes.
   )
 
 
 (defparameter *html-process-table*
-    (make-hash-table :test #'equal) ; #'eq is accurate but want to avoid rehashes
+  ;; #'eq is accurate but want to avoid rehashes.
+    (make-hash-table :test #'equal)
   )
 
-(defvar *html-stream* nil) ; where the output goes
+(defvar *html-stream* nil)  ; Where the output goes
 
 (defmacro html (&body forms &environment env)
-  ;; just emit html to the curfent stream
+  ;; Just emit HTML to the current stream.
   (process-html-forms forms env))
 
 (defmacro html-out-stream-check (stream)
-  ;; ensure that a real stream is passed to this function
+  ;; Ensure that a real stream is passed to this function.
   `(let ((.str. ,stream))
      (if* (not (streamp .str.))
 	then (error "html-stream must be passed a stream object, not ~s"
@@ -158,7 +142,7 @@
 
 
 (defmacro html-stream (stream &rest forms)
-  ;; set output stream and emit html
+  ;; Set output stream and emit HTML.
   `(let ((*html-stream* (html-out-stream-check ,stream))) (html ,@forms)))
 
 
@@ -166,29 +150,27 @@
 (defun process-html-forms (forms env)
   (let (res)
     (flet ((do-ent (ent args argsp body)
-	     ;; ent is an html-process object associated with the
-	     ;;	    html tag we're processing
+	     ;; ent is an html-process object associated with the HTML tag we're
+	     ;;     processing.
 	     ;; args is the list of values after the tag in the form
 	     ;;     ((:tag &rest args) ....)
-	     ;; argsp is true if this isn't a singleton tag  (i.e. it has
-	     ;;     a body) .. (:tag ...) or ((:tag ...) ...)
-	     ;; body is the body if any of the form
-	     ;;
+	     ;; argsp is true if this isn't a singleton tag  (i.e. it has a body).
+	     ;;     (:tag ...) or ((:tag ...) ...)
+	     ;; body is the body if any of the form.
 	     (let (spec)
 	       (if* (setq spec (html-process-special ent))
-		  then ; do something different
+		  then  ; Do something different.
 		       (push (funcall spec ent args argsp body) res)
 		elseif (null argsp)
-		  then ; singleton tag, just do the set
+		  then  ; Singleton tag, just do the set.
 		       (push `(,(html-process-macro ent) :set) res)
 		       nil
 		  else (if* (equal args '(:unset))
-			  then ; ((:tag :unset)) is a special case.
-			       ; that allows us to close off singleton tags
-			       ; printed earlier.
+			  then ; ((:tag :unset)) is a special case that allows us to close
+			       ; off singleton tags printed earlier.
 			       (push `(,(html-process-macro ent) :unset) res)
 			       nil
-			  else ; some args
+			  else ; Some args.
 			       (push `(,(html-process-macro ent) ,args
 								 ,(process-html-forms body env))
 				     res)
@@ -215,7 +197,7 @@
 		   else (push form res))
 	   else (let ((first (car form)))
 		  (if* (keywordp first)
-		     then ; (:xxx . body) form
+		     then ; (:xxx . body) form.
 			  (let ((ent (gethash first
 					    *html-process-table*)))
 			    (if* (null ent)
@@ -223,7 +205,7 @@
 					   form)
 			       else (do-ent ent nil t (cdr form))))
 		   elseif (and (consp first) (keywordp (car first)))
-		     then ; ((:xxx args ) . body)
+		     then ; ((:xxx args ) . body).
 			  (let ((ent (gethash (car first)
 					    *html-process-table*)))
 			    (if* (null ent)
@@ -246,17 +228,16 @@
 	       else ans))))
 
 (defun html-body-form (open close body)
-  ;; used when args don't matter
+  ;; Used when args don't matter.
   `(progn (write-html-string  ,open *html-stream*)
 	  ,@body
 	  (write-html-string  ,close *html-stream*)))
 
 
 (defun html-body-key-form (string-code has-inv args body)
-  ;; do what's needed to handle given keywords in the args
-  ;; then do the body
+  ;; Do what's needed to handle given keywords in the args then do the body.
   (if* (and args (atom args))
-     then ; single arg
+     then ; Single arg.
 	  (return-from html-body-key-form
 	    (case args
 	      (:set `(write-html-string  ,(format nil "<~a>" string-code)
@@ -278,7 +259,7 @@
 			((null xx)
 			 (nreverse res))
 		      (if* (eq :if* (car xx))
-			 then ; insert following conditionally
+			 then ; Insert following conditionally.
 			      (push `(if* ,(cadr xx)
 					then (write-string
 					      ,(format nil " ~a" (caddr xx))
@@ -310,11 +291,11 @@
 
 
 (defun princ-http (val)
-  ;; print the given value to the http stream using ~a
+  ;; Print the given value to the HTML stream using ~a.
   (format *html-stream* "~a" val))
 
 (defun prin1-http (val)
-  ;; print the given value to the http stream using ~s
+  ;; Print the given value to the HTML stream using ~s.
   (format *html-stream* "~s" val))
 
 
@@ -326,18 +307,17 @@
 
 
 (defun prin1-safe-http-string (val)
-  ;; used only in a parameter value situation
+  ;; Used only in a parameter value situation.
   ;;
-  ;; if the parameter value is the symbol with the empty print name
-  ;; then turn this into a singleton object.  Thus || is differnent
-  ;; than "".
+  ;; If the parameter value is the symbol with the empty print name, then turn
+  ;; this into a singleton object. Thus || is different than "".
   ;;
-  ;; print the contents inside a string double quotes (which should
-  ;; not be turned into &quot;'s
-  ;; symbols are turned into their name
+  ;; Print the contents inside a string with double quotes (which should not be
+  ;; turned into &quot;'s.
+  ;; Symbols are turned into their name.
   (if* (and (symbolp val)
 	    (equal "" (symbol-name val)))
-     thenret ; do nothing
+     thenret ; Do nothing.
      else (write-char #\= *html-stream*)
 	  (if* (or (stringp val)
 		   (and (symbolp val)
@@ -350,8 +330,8 @@
 
 
 (defun emit-safe (stream string)
-  ;; send the string to the http response stream watching out for
-  ;; special html characters and encoding them appropriately
+  ;; Send the string to the HTTP response stream, watching out for special HTTP
+  ;; characters and encoding them appropriately.
   (do* ((i 0 (1+ i))
 	(start i)
 	(end (length string)))
@@ -374,7 +354,7 @@
        elseif (eq ch #\")
 	 then (setq cvt "&quot;"))
       (if* cvt
-	 then ; must do a conversion, emit previous chars first
+	 then ; Must do a conversion, emit previous chars first.
 
 	      (if* (< start i)
 		 then  (write-sequence string
@@ -388,13 +368,13 @@
 
 
 (defun html-print-list (list-of-forms stream &key unknown)
-  ;; html print a list of forms
+  ;; HTML print a list of forms.
   (dolist (x list-of-forms)
     (html-print-subst x nil stream unknown)))
 
 
 (defun html-print-list-subst (list-of-forms subst stream &key unknown)
-  ;; html print a list of forms
+  ;; HTML print a list of forms.
   (dolist (x list-of-forms)
     (html-print-subst x subst stream unknown)))
 
@@ -404,7 +384,7 @@
 
 
 (defun html-print-subst (form subst stream unknown)
-  ;; Print the given lhtml form to the given stream
+  ;; Print the given lhtml form to the given stream.
   (assert (streamp stream))
 
 
@@ -425,7 +405,7 @@
 		       then (return-from html-print-subst
 			      (funcall unknown form stream))
 		       else (error "unknown html tag: ~s" possible-kwd))
-	       else ; see if we should subst
+	       else ; See if we should subst.
 		    (if* (and subst
 			      attrs
 			      (setq attr-name (html-process-name-attr ent))
@@ -463,10 +443,9 @@
 
 
 (defun html-find-value (key subst)
-  ; find the (key . value) object in the subst list.
-  ; A subst list is an assoc list ((key . value) ....)
-  ; but instead of a (key . value) cons you may have an assoc list
-  ;
+  ;; Find the (key . value) object in the subst list.
+  ;; A subst list is an assoc list ((key . value) ....) but instead of a
+  ;; (key . value) cons you may have an assoc list.
   (let ((to-process nil)
 	(alist subst))
     (loop
@@ -474,7 +453,7 @@
 	    (ent (car entlist) (car entlist)))
 	  ((null entlist) (setq alist nil))
 	(if* (consp (car ent))
-	   then ; this is another alist
+	   then ; This is another alist.
 		(if* (cdr entlist)
 		   then (push (cdr entlist) to-process))
 		(setq alist ent)
@@ -483,23 +462,23 @@
 	   then (return-from html-find-value ent)))
 
       (if* (null alist)
-	 then ; we need to find a new alist to process
+	 then ; We need to find a new alist to process.
 
 	      (if* to-process
 		 then (setq alist (pop to-process))
 		 else (return))))))
 
 (defun html-standard-print (ent cmd args form subst unknown stream)
-  ;; the print handler for the normal html operators
+  ;; The print handler for the normal HTML operators.
   (ecase cmd
-    (:set ; just turn it on
+    (:set  ; Just turn it on.
      (format stream "<~a>" (html-process-key ent)))
-    (:full ; set, do body and then unset
+    (:full  ; Set, do body and then unset.
      (let (iter)
        (if* args
 	  then (if* (and (setq iter (getf args :iter))
 			 (setq iter (html-find-value iter subst)))
-		  then ; remove the iter and pre
+		  then ; Remove the iter and pre.
 		       (setq args (copy-list args))
 		       (remf args :iter)
 		       (funcall (cdr iter)
@@ -513,16 +492,15 @@
 		       (format stream "<~a" (html-process-key ent))
 		       (do ((xx args (cddr xx)))
 			   ((null xx))
-			 ; assume that the arg is already escaped
-			 ; since we read it
-			 ; from the parser
+			 ;; Assume that the arg is already escaped since we read it from
+			 ;; the parser.
 			 (format stream " ~a=\"~a\"" (car xx) (cadr xx)))
 		       (format stream ">"))
 	  else (format stream "<~a>" (html-process-key ent)))
        (dolist (ff (cdr form))
 	 (html-print-subst ff subst stream unknown)))
      (if* (html-process-has-inverse ent)
-	then ; end the form
+	then ; End the form.
 	     (write-html-string (format nil "</~a>" (html-process-key ent)) stream)))))
 
 
@@ -532,42 +510,38 @@
 
 
 
-;; --  defining how html tags are handled. --
-;;
-;; most tags are handled in a standard way and the def-std-html
-;; macro is used to define such tags
-;;
-;; Some tags need special treatment and def-special-html defines
-;; how these are handled.  The tags requiring special treatment
-;; are the pseudo tags we added to control operations
-;; in the html generator.
-;;
-;;
-;; tags can be found in three ways:
-;;  :br	    		- singleton, no attributes, no body
-;;  (:b "foo")          - no attributes but with a body
-;;  ((:a href="foo") "balh")  - attributes and body
-;;
+;;; -- Defining how html tags are handled. --
+;;;
+;;; Most tags are handled in a standard way and the def-std-html macro is used
+;;; to define such tags.
+;;;
+;;; Some tags need special treatment and def-special-html defines how these are
+;;; handled. The tags requiring special treatment are the pseudo tags we added
+;;; to control operations in the HTML generator.
+;;;
+;;; Tags can be found in three ways:
+;;;  :br         - singleton, no attributes, no body.
+;;;  (:b "foo")  - no attributes but with a body.
+;;;  ((:a href "foo") "balh")  - attributes and body.
 
 
 
 (defmacro def-special-html (kwd fcn print-fcn)
-  ;; kwd - the tag we're defining behavior for.
-  ;; fcn - function to compute the macroexpansion of a use of this
-  ;;       tag. args to fcn are:
-  ;;		ent - html-process object holding info on this tag
-  ;;		args - list of attribute-values following tag
-  ;;		argsp - true if there is a body in this use of the tag
-  ;;		body - list of body forms.
-  ;; print-fcn - function to print an lhtml form with this tag
-  ;;	    args to fcn are:
-  ;;		ent - html-process object holding info on this tag
-  ;;		cmd - one of :set, :unset, :full
-  ;;		args - list of attribute-value pairs
-  ;;		subst - subsitution list
-  ;;		unknown - function to call for unknown tags
-  ;;		stream - stream to write to
-  ;;
+  ;; kwd - The tag we're defining a behavior for.
+  ;; fcn - Function to compute the macroexpansion of a use of this tag.
+  ;;       Args to fcn are:
+  ;;         ent - html-process object holding info on this tag.
+  ;;         args - List of attribute-values following tag.
+  ;;         argsp - True if there is a body in this use of the tag.
+  ;;         body - List of body forms.
+  ;; print-fcn - Function to print an lhtml form with this tag.
+  ;;       Args to print-fcn are:
+  ;;         ent - html-process object holding info on this tag.
+  ;;         cmd - One of :set, :unset, :full.
+  ;;         args - List of attribute-value pairs.
+  ;;         subst - Substitution list.
+  ;;         unknown - Function to call for unknown tags.
+  ;;         stream - Stream to write to.
   `(setf (gethash ,kwd *html-process-table*)
      (make-html-process ,kwd nil nil ,fcn ,print-fcn nil)))
 
@@ -650,7 +624,7 @@
 
 (def-special-html :comment
   #'(lambda (ent args argsp body)
-      ;; must use <!--   --> syntax
+      ;; Must use <!--   --> syntax.
       (declare (ignore ent args argsp))
       `(progn (write-html-string "<!--" *html-stream*)
 	      (html ,@body)
@@ -801,7 +775,7 @@
 
 (def-std-html :xmp 	t nil)
 
-;; html 5
+;;; HTML5.
 
 (def-std-html :section		t nil)
 (def-std-html :article		t nil)
